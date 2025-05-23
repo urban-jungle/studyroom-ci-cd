@@ -25,21 +25,27 @@ pipeline {
         }
 
         stage('Wait for MariaDB Ready') {
-            steps {
-                script {
-                    sh '''
-                        echo "⏳ Waiting for MariaDB to become available..."
-                        for i in {1..20}; do
-                            docker logs cicd-mariadb 2>&1 | grep 'ready for connections' && echo "✅ MariaDB is ready" && exit 0
-                            echo "Waiting for MariaDB... ($i/20)"
-                            sleep 3
-                        done
-                        echo "❌ MariaDB is not responding in time."
-                        docker logs cicd-mariadb
-                        exit 1
-                    '''
+          steps {
+            script {
+              echo '⏳ Waiting for MariaDB to become available...'
+              def ready = false
+              for (int i = 0; i < 20; i++) {
+                def output = sh(script: "docker logs cicd-mariadb 2>&1 | grep 'ready for connections' || true", returnStdout: true).trim()
+                if (output) {
+                  echo '✅ MariaDB is ready!'
+                  ready = true
+                  break
                 }
+                echo "Waiting for MariaDB... (${i + 1}/20)"
+                sleep 3
+              }
+              if (!ready) {
+                echo '❌ MariaDB is not responding in time.'
+                sh 'docker logs cicd-mariadb'
+                error("MariaDB did not become ready.")
+              }
             }
+          }
         }
         
         stage('Build Backend') {
