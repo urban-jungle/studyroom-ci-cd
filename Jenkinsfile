@@ -19,8 +19,28 @@ pipeline {
                           -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \\
                           -e MYSQL_DATABASE=$MYSQL_DATABASE \\
                           -p $DB_PORT:3306 mariadb:10.6
-                        sleep 20
                     """
+                }
+            }
+        }
+
+        stage('Wait for MariaDB Ready') {
+            steps {
+                script {
+                    sh '''
+                        echo "⏳ Checking MariaDB availability..."
+                        for i in {1..10}; do
+                            if docker exec cicd-mariadb mysqladmin ping -uroot -p1234 --silent; then
+                                echo "✅ MariaDB is ready!"
+                                exit 0
+                            fi
+                            echo "Waiting for MariaDB to be ready... ($i/10)"
+                            sleep 3
+                        done
+                        echo "❌ MariaDB did not start in time"
+                        docker logs cicd-mariadb || true
+                        exit 1
+                    '''
                 }
             }
         }
