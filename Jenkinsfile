@@ -96,11 +96,13 @@ pipeline {
         stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t studyroom-frontend ./frontend'
+                    sh """
+                        docker build -t studyroom-frontend ./frontend
+                    """
                 }
             }
         }
-
+        
         stage('Push Docker Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
