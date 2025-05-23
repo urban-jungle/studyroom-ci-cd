@@ -28,17 +28,14 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        echo "⏳ Checking MariaDB availability..."
+                        echo "⏳ Waiting for MariaDB to become available..."
                         for i in {1..10}; do
-                            if docker exec cicd-mariadb mysqladmin ping -uroot -p1234 --silent; then
-                                echo "✅ MariaDB is ready!"
-                                exit 0
-                            fi
-                            echo "Waiting for MariaDB to be ready... ($i/10)"
+                            docker exec cicd-mariadb sh -c "mysql -uroot -p1234 -e 'SELECT 1'" && exit 0
+                            echo "Waiting for MariaDB... ($i/10)"
                             sleep 3
                         done
-                        echo "❌ MariaDB did not start in time"
-                        docker logs cicd-mariadb || true
+                        echo "❌ MariaDB is not responding in time."
+                        docker logs cicd-mariadb
                         exit 1
                     '''
                 }
