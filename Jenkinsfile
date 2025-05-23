@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DB_CONTAINER = 'cicd-mariadb'
-        DB_PORT = '3306'
+        DB_PORT = '13306'
         MYSQL_ROOT_PASSWORD = '1234'
         MYSQL_DATABASE = 'studyroom'
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
