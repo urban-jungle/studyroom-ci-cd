@@ -3,9 +3,11 @@ pipeline {
 
     environment {
         DB_CONTAINER = 'cicd-mariadb'
-        DB_PORT = '13306'
-        MYSQL_ROOT_PASSWORD = '1234'
-        MYSQL_DATABASE = 'studyroom'
+        DB_IMAGE = 'mariadb:10.6'
+        DB_NAME = 'studyroom'
+        DB_PASSWORD = 'root'
+        DB_USER = 'root'
+        NETWORK_NAME = 'cicd-net'
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     }
 
@@ -14,43 +16,47 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker rm -f $DB_CONTAINER || true
-                        docker run -d --name $DB_CONTAINER \\
-                          -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \\
-                          -e MYSQL_DATABASE=$MYSQL_DATABASE \\
-                          -p $DB_PORT:3306 mariadb:10.6
+                        docker network create ${NETWORK_NAME} || true
+
+                        docker rm -f ${DB_CONTAINER} || true
+
+                        docker run -d --name ${DB_CONTAINER} \\
+                            --network ${NETWORK_NAME} \\
+                            -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} \\
+                            -e MYSQL_DATABASE=${DB_NAME} \\
+                            ${DB_IMAGE}
                     """
                 }
             }
         }
 
         stage('Wait for MariaDB Ready') {
-          steps {
-            script {
-              echo '⏳ Waiting for MariaDB to become available...'
-              def ready = false
-              for (int i = 0; i < 30; i++) {
-                def logCheck = sh(script: "docker logs cicd-mariadb 2>&1 | grep 'ready for connections' || true", returnStdout: true).trim()
-                if (logCheck) {
-                  echo '✅ MariaDB is ready!'
-                  ready = true
-                  break
+            steps {
+                script {
+                    echo '⏳ Waiting for MariaDB to be ready...'
+                    def ready = false
+                    for (int i = 0; i < 30; i++) {
+                        def logs = sh(script: "docker logs ${DB_CONTAINER} 2>&1 | grep 'ready for connections' || true", returnStdout: true).trim()
+                        if (logs) {
+                            echo '✅ MariaDB is ready!'
+                            ready = true
+                            break
+                        }
+                        sleep 2
+                    }
+                    if (!ready) {
+                        error('❌ MariaDB did not become ready in time.')
+                    }
                 }
-                echo "Waiting for MariaDB... (${i + 1}/30)"
-                sleep 2
-              }
-              if (!ready) {
-                error('❌ MariaDB did not start in time')
-              }
             }
-          }
         }
 
-        
         stage('Build Backend') {
             steps {
                 dir('backend') {
-                    sh './mvnw clean package'
+                    sh """
+                        ./mvnw clean package
+                    """
                 }
             }
         }
@@ -58,8 +64,10 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 dir('frontend') {
-                    sh 'npm install'
-                    sh 'npm run build'
+                    sh """
+                        npm install
+                        npm run build
+                    """
                 }
             }
         }
@@ -81,7 +89,9 @@ pipeline {
 
     post {
         always {
-            sh "docker rm -f $DB_CONTAINER || true"
+            sh """
+                docker rm -f ${DB_CONTAINER} || true
+            """
         }
     }
 }
