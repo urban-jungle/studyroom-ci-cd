@@ -30,7 +30,7 @@ pipeline {
                     sh '''
                         echo "⏳ Waiting for MariaDB to become available..."
                         for i in {1..10}; do
-                            docker exec cicd-mariadb sh -c "mysql -uroot -p1234 -e 'SELECT 1'" && exit 0
+                            docker exec cicd-mariadb mysql -uroot -p1234 -e "SELECT 1" && exit 0
                             echo "Waiting for MariaDB... ($i/10)"
                             sleep 3
                         done
