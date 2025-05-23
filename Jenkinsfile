@@ -1,19 +1,26 @@
 pipeline {
     agent any
+
     environment {
+        DB_CONTAINER = 'cicd-mariadb'
+        DB_PORT = '3306'
+        MYSQL_ROOT_PASSWORD = '1234'
+        MYSQL_DATABASE = 'studyroom'
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     }
 
     stages {
-        stage('Start DB') {
+        stage('Start MariaDB') {
             steps {
                 script {
-                    sh '''
-                        docker rm -f cicd-mariadb || true
-                        docker run -d --name cicd-mariadb -e MYSQL_ROOT_PASSWORD=1234 -e MYSQL_DATABASE=studyroom \
-                        -p 3306:3306 mariadb:10.6
+                    sh """
+                        docker rm -f $DB_CONTAINER || true
+                        docker run -d --name $DB_CONTAINER \\
+                          -e MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD \\
+                          -e MYSQL_DATABASE=$MYSQL_DATABASE \\
+                          -p $DB_PORT:3306 mariadb:10.6
                         sleep 20
-                    '''
+                    """
                 }
             }
         }
@@ -35,16 +42,16 @@ pipeline {
             }
         }
 
-        stage('Push Images') {
+        stage('Push Docker Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
+                    sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker build -t $DOCKER_USER/studyroom-backend ./backend
                         docker build -t $DOCKER_USER/studyroom-frontend ./frontend
                         docker push $DOCKER_USER/studyroom-backend
                         docker push $DOCKER_USER/studyroom-frontend
-                    '''
+                    """
                 }
             }
         }
@@ -52,7 +59,7 @@ pipeline {
 
     post {
         always {
-            sh 'docker rm -f cicd-mariadb || true'
+            sh "docker rm -f $DB_CONTAINER || true"
         }
     }
 }
