@@ -75,11 +75,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker rm -f ${BACKEND_CONTAINER} || true
-                        docker run -d --name ${BACKEND_CONTAINER} \\
-                            --network ${NETWORK_NAME} \\
-                            -p 8081:8081 \\
-                            studyroom-backend
+                        docker rm -f studyroom-backend || true
+                        docker run -d --name studyroom-backend --network ${NETWORK_NAME} -p 8089:8081 studyroom-backend
                     """
                 }
             }
