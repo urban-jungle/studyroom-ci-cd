@@ -1,15 +1,20 @@
 pipeline {
     agent any
-
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-        DOCKERHUB_USERNAME = 'jungmin2'
     }
 
     stages {
-        stage('Checkout') {
+        stage('Start DB') {
             steps {
-                checkout scm
+                script {
+                    sh '''
+                        docker rm -f cicd-mariadb || true
+                        docker run -d --name cicd-mariadb -e MYSQL_ROOT_PASSWORD=1234 -e MYSQL_DATABASE=studyroom \
+                        -p 3306:3306 mariadb:10.6
+                        sleep 20
+                    '''
+                }
             }
         }
 
@@ -17,7 +22,6 @@ pipeline {
             steps {
                 dir('backend') {
                     sh './mvnw clean package'
-                    sh "docker build -t $DOCKERHUB_USERNAME/studyroom-backend ."
                 }
             }
         }
@@ -25,17 +29,30 @@ pipeline {
         stage('Build Frontend') {
             steps {
                 dir('frontend') {
-                    sh "docker build -t $DOCKERHUB_USERNAME/studyroom-frontend ."
+                    sh 'npm install'
+                    sh 'npm run build'
                 }
             }
         }
 
         stage('Push Images') {
             steps {
-                sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_USERNAME --password-stdin"
-                sh "docker push $DOCKERHUB_USERNAME/studyroom-backend"
-                sh "docker push $DOCKERHUB_USERNAME/studyroom-frontend"
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker build -t $DOCKER_USER/studyroom-backend ./backend
+                        docker build -t $DOCKER_USER/studyroom-frontend ./frontend
+                        docker push $DOCKER_USER/studyroom-backend
+                        docker push $DOCKER_USER/studyroom-frontend
+                    '''
+                }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker rm -f cicd-mariadb || true'
         }
     }
 }
