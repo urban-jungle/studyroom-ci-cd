@@ -35,21 +35,30 @@ pipeline {
                 script {
                     echo '⏳ Waiting for MariaDB to be ready...'
                     def ready = false
-                    for (int i = 0; i < 30; i++) {
-                        def logs = sh(script: "docker logs ${DB_CONTAINER} 2>&1 | grep 'ready for connections' || true", returnStdout: true).trim()
-                        if (logs) {
-                            echo '✅ MariaDB is ready!'
+                    for (int i = 0; i < 10; i++) {
+                        def result = sh(
+                            script: """
+                                docker exec ${DB_CONTAINER} mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD} --silent
+                            """,
+                            returnStatus: true
+                        )
+                        if (result == 0) {
                             ready = true
+                            echo '✅ MariaDB is ready!'
                             break
+                        } else {
+                            echo '❗ MariaDB is not ready yet. Retrying in 5s...'
+                            sleep 5
                         }
-                        sleep 2
                     }
+        
                     if (!ready) {
-                        error('❌ MariaDB did not become ready in time.')
+                        error('❌ MariaDB did not become ready in time. Failing the build.')
                     }
                 }
             }
         }
+
 
         stage('Build Backend') {
             steps {
