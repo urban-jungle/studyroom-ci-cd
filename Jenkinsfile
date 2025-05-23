@@ -82,17 +82,6 @@ pipeline {
             }
         }
 
-        stage('Build Frontend') {
-            steps {
-                dir('frontend') {
-                    sh """
-                        npm install
-                        npm run build
-                    """
-                }
-            }
-        }
-
         stage('Build Frontend Docker Image') {
             steps {
                 script {
