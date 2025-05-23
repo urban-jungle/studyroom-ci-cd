@@ -8,6 +8,8 @@ pipeline {
         DB_PASSWORD = 'root'
         DB_USER = 'root'
         NETWORK_NAME = 'cicd-net'
+        BACKEND_CONTAINER = 'studyroom-backend'
+        FRONTEND_CONTAINER = 'studyroom-frontend'
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     }
 
@@ -17,9 +19,7 @@ pipeline {
                 script {
                     sh """
                         docker network create ${NETWORK_NAME} || true
-
                         docker rm -f ${DB_CONTAINER} || true
-
                         docker run -d --name ${DB_CONTAINER} \\
                             --network ${NETWORK_NAME} \\
                             -e MYSQL_ROOT_PASSWORD=${DB_PASSWORD} \\
@@ -37,34 +37,49 @@ pipeline {
                     def ready = false
                     for (int i = 0; i < 10; i++) {
                         def result = sh(
-                            script: """
-                                docker exec ${DB_CONTAINER} mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD} --silent
-                            """,
+                            script: "docker exec ${DB_CONTAINER} mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD} --silent",
                             returnStatus: true
                         )
                         if (result == 0) {
-                            ready = true
                             echo '✅ MariaDB is ready!'
+                            ready = true
                             break
-                        } else {
-                            echo '❗ MariaDB is not ready yet. Retrying in 5s...'
-                            sleep 5
                         }
+                        echo "❗ MariaDB not ready. Retrying in 5s..."
+                        sleep 5
                     }
-        
                     if (!ready) {
-                        error('❌ MariaDB did not become ready in time. Failing the build.')
+                        error('❌ MariaDB did not become ready in time.')
                     }
                 }
             }
         }
 
-
-        stage('Build Backend') {
+        stage('Build Backend JAR') {
             steps {
                 dir('backend') {
+                    sh './mvnw clean package -DskipTests'
+                }
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                script {
+                    sh 'docker build -t studyroom-backend ./backend'
+                }
+            }
+        }
+
+        stage('Run Backend Container') {
+            steps {
+                script {
                     sh """
-                        ./mvnw clean package
+                        docker rm -f ${BACKEND_CONTAINER} || true
+                        docker run -d --name ${BACKEND_CONTAINER} \\
+                            --network ${NETWORK_NAME} \\
+                            -p 8081:8081 \\
+                            studyroom-backend
                     """
                 }
             }
@@ -81,13 +96,21 @@ pipeline {
             }
         }
 
+        stage('Build Frontend Docker Image') {
+            steps {
+                script {
+                    sh 'docker build -t studyroom-frontend ./frontend'
+                }
+            }
+        }
+
         stage('Push Docker Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker build -t $DOCKER_USER/studyroom-backend ./backend
-                        docker build -t $DOCKER_USER/studyroom-frontend ./frontend
+                        docker tag studyroom-backend $DOCKER_USER/studyroom-backend
+                        docker tag studyroom-frontend $DOCKER_USER/studyroom-frontend
                         docker push $DOCKER_USER/studyroom-backend
                         docker push $DOCKER_USER/studyroom-frontend
                     """
@@ -100,6 +123,7 @@ pipeline {
         always {
             sh """
                 docker rm -f ${DB_CONTAINER} || true
+                docker rm -f ${BACKEND_CONTAINER} || true
             """
         }
     }
