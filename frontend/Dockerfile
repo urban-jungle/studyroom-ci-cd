@@ -4,10 +4,14 @@ FROM node:18 AS build-stage
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install && \
-    chmod +x node_modules/.bin/vue-cli-service
+RUN npm install
 
 COPY . .
+
+# 권한 확인 및 부여
+RUN chmod +x node_modules/.bin/vue-cli-service && \
+    ls -l node_modules/.bin/vue-cli-service
+
 RUN npm run build
 
 # Step 2: Production stage
