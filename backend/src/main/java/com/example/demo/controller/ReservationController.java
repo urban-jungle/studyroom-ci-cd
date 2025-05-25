@@ -4,6 +4,7 @@ import com.example.demo.model.Reservation;
 import com.example.demo.model.Room;
 import com.example.demo.repository.ReservationRepository;
 import com.example.demo.repository.StudyRoomRepository;
+import com.example.demo.repository.RoomRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
