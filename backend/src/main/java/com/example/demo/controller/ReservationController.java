@@ -1,14 +1,15 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Reservation;
-import com.example.demo.model.Room;
+import com.example.demo.model.StudyRoom;
 import com.example.demo.repository.ReservationRepository;
-import com.example.demo.repository.RoomRepository; // ✅ 수정
+import com.example.demo.repository.StudyRoomRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/reservations")
@@ -16,11 +17,11 @@ import java.util.List;
 public class ReservationController {
 
     private final ReservationRepository reservationRepository;
-    private final RoomRepository roomRepository; // ✅ 수정
+    private final StudyRoomRepository studyRoomRepository;
 
-    public ReservationController(ReservationRepository reservationRepository, RoomRepository roomRepository) {
+    public ReservationController(ReservationRepository reservationRepository, StudyRoomRepository studyRoomRepository) {
         this.reservationRepository = reservationRepository;
-        this.roomRepository = roomRepository; // ✅ 수정
+        this.studyRoomRepository = studyRoomRepository;
     }
 
     @GetMapping
@@ -39,9 +40,12 @@ public class ReservationController {
             return ResponseEntity.status(409).body("이미 예약된 시간입니다.");
         }
 
-        // ✅ 이 부분 깔끔하게 수정
-        roomRepository.findById(roomId).ifPresent(reservation::setRoom);
+        Optional<StudyRoom> roomOptional = studyRoomRepository.findById(roomId);
+        if (roomOptional.isEmpty()) {
+            return ResponseEntity.badRequest().body("해당 스터디룸을 찾을 수 없습니다.");
+        }
 
+        reservation.setRoom(roomOptional.get());
         return ResponseEntity.ok(reservationRepository.save(reservation));
     }
 
@@ -59,8 +63,8 @@ public class ReservationController {
                 existing.setStartTime(updated.getStartTime());
                 existing.setEndTime(updated.getEndTime());
                 existing.setRoom(updated.getRoom());
-                reservationRepository.save(existing);
-                return ResponseEntity.ok(existing);
-            }).orElse(ResponseEntity.notFound().build());
+                return ResponseEntity.ok(reservationRepository.save(existing));
+            })
+            .orElse(ResponseEntity.notFound().build());
     }
 }
