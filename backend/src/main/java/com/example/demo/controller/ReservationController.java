@@ -17,11 +17,11 @@ import java.util.Optional;
 public class ReservationController {
 
     private final ReservationRepository reservationRepository;
-    private final StudyRoomRepository studyRoomRepository;
+    private final RoomRepository roomRepository;
 
-    public ReservationController(ReservationRepository reservationRepository, StudyRoomRepository studyRoomRepository) {
+    public ReservationController(ReservationRepository reservationRepository, RoomRepository roomRepository) {
         this.reservationRepository = reservationRepository;
-        this.studyRoomRepository = studyRoomRepository;
+        this.roomRepository = roomRepository;
     }
 
     @GetMapping
