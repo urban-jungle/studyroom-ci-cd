@@ -1,7 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Reservation;
-import com.example.demo.model.StudyRoom;
+import com.example.demo.model.Room;
 import com.example.demo.repository.ReservationRepository;
 import com.example.demo.repository.StudyRoomRepository;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +40,7 @@ public class ReservationController {
             return ResponseEntity.status(409).body("이미 예약된 시간입니다.");
         }
 
-        Optional<StudyRoom> roomOptional = studyRoomRepository.findById(roomId);
+        Optional<Room> roomOptional = roomRepository.findById(roomId);
         if (roomOptional.isEmpty()) {
             return ResponseEntity.badRequest().body("해당 스터디룸을 찾을 수 없습니다.");
         }
