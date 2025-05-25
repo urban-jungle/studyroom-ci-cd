@@ -55,6 +55,31 @@ pipeline {
             }
         }
 
+        stage('Verify DB Access from Network') {
+            steps {
+                script {
+                    echo '🧪 Verifying DB access from Docker network...'
+                    def ready = false
+                    for (int i = 0; i < 10; i++) {
+                        def result = sh(
+                            script: "docker run --rm --network ${NETWORK_NAME} mariadb:10.6 mysqladmin ping -h ${DB_CONTAINER} -u${DB_USER} -p${DB_PASSWORD} --silent",
+                            returnStatus: true
+                        )
+                        if (result == 0) {
+                            echo '✅ DB is reachable from network!'
+                            ready = true
+                            break
+                        }
+                        echo "⏳ DB not reachable yet. Retrying in 5s..."
+                        sleep 5
+                    }
+                    if (!ready) {
+                        error('❌ DB was not reachable from backend network context.')
+                    }
+                }
+            }
+        }
+
         stage('Build Backend JAR') {
             steps {
                 dir('backend') {
@@ -75,8 +100,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                        docker rm -f studyroom-backend || true
-                        docker run -d --name studyroom-backend --network ${NETWORK_NAME} -p 8089:8081 studyroom-backend
+                        docker rm -f ${BACKEND_CONTAINER} || true
+                        docker run -d --name ${BACKEND_CONTAINER} --network ${NETWORK_NAME} -p 8089:8081 studyroom-backend
                     """
                 }
             }
@@ -91,7 +116,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Push Docker Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
