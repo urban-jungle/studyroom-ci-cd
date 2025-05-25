@@ -1,0 +1,12 @@
+# Vue CLI
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+
+# IDE
+*.idea/
+*.vscode/
+
+# 환경파일
+.env*

@@ -1,0 +1,13 @@
+# Maven
+target/
+.mvnw
+mvnw.cmd
+
+# OS / IDE
+*.log
+*.DS_Store
+*.idea/
+*.vscode/
+
+# 기타
+.env
